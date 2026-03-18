@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 프롭테크 건축 자동화 에이전트</title>
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --glass-bg: rgba(22, 27, 34, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --text-main: #c9d1d9;
+            --text-muted: #8b949e;
+            --accent: #58a6ff;
+            --accent-glow: rgba(88, 166, 255, 0.3);
+            --agent-msg: rgba(33, 38, 45, 0.8);
+            --user-msg: rgba(31, 111, 235, 0.15);
+            --font-family: 'Pretendard', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(88, 166, 255, 0.1), transparent 30%),
+                radial-gradient(circle at 90% 80%, rgba(137, 87, 229, 0.1), transparent 30%);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        header {
+            padding: 20px 30px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--glass-border);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            z-index: 10;
+        }
+
+        .logo {
+            width: 42px;
+            height: 42px;
+            background: linear-gradient(135deg, #1f6feb, #8957e5);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 22px;
+            color: white;
+            box-shadow: 0 0 15px var(--accent-glow);
+        }
+
+        .header-text h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .header-text p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        main {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px 10%;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            scroll-behavior: smooth;
+        }
+
+        main::-webkit-scrollbar {
+            width: 8px;
+        }
+        main::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+        }
+
+        .message {
+            max-width: 85%;
+            padding: 18px 24px;
+            border-radius: 16px;
+            line-height: 1.6;
+            animation: fadeIn 0.4s ease-out forwards;
+            position: relative;
+            font-size: 1.05rem;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .agent-message {
+            align-self: flex-start;
+            background: var(--agent-msg);
+            border: 1px solid var(--glass-border);
+            backdrop-filter: blur(10px);
+            border-bottom-left-radius: 4px;
+        }
+
+        .user-message {
+            align-self: flex-end;
+            background: var(--user-msg);
+            border: 1px solid rgba(88, 166, 255, 0.3);
+            border-bottom-right-radius: 4px;
+        }
+
+        pre {
+            background: #010409;
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 12px 0;
+            border: 1px solid var(--glass-border);
+            font-family: 'Consolas', monospace;
+            font-size: 0.95rem;
+            color: #79c0ff;
+        }
+
+        .alt-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            padding: 18px;
+            border-radius: 10px;
+            margin: 12px 0;
+            transition: all 0.3s ease;
+        }
+        
+        .alt-card:hover {
+            border-color: var(--accent);
+            background: rgba(88, 166, 255, 0.05);
+            transform: translateY(-2px);
+        }
+
+        .alt-card button {
+            margin-top: 12px;
+            padding: 8px 18px;
+            background: transparent;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+        }
+
+        .alt-card button:hover {
+            background: var(--accent);
+            color: #0d1117;
+            box-shadow: 0 0 12px var(--accent-glow);
+        }
+
+        .download-link {
+            display: inline-flex;
+            align-items: center;
+            padding: 10px 16px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            color: #fff;
+            text-decoration: none;
+            margin: 6px 12px 6px 0;
+            border: 1px solid var(--glass-border);
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .download-link:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: var(--text-muted);
+        }
+
+        .input-area {
+            padding: 20px 10%;
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border-top: 1px solid var(--glass-border);
+            display: flex;
+            gap: 15px;
+            z-index: 10;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 16px 22px;
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+            background: rgba(1, 4, 9, 0.5);
+            color: white;
+            font-size: 1.05rem;
+            font-family: inherit;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px var(--accent-glow);
+        }
+
+        button.send-btn {
+            background: var(--accent);
+            color: #0d1117;
+            border: none;
+            border-radius: 12px;
+            padding: 0 26px;
+            font-size: 1.05rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px var(--accent-glow);
+        }
+
+        button.send-btn:hover {
+            transform: translateY(-2px);
+            background: #79c0ff;
+            box-shadow: 0 6px 20px rgba(88, 166, 255, 0.5);
+        }
+
+        button.send-btn:disabled {
+            background: var(--glass-border);
+            color: var(--text-muted);
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        .typing-indicator {
+            display: none;
+            padding: 16px 24px;
+            background: var(--agent-msg);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            border-bottom-left-radius: 4px;
+            align-self: flex-start;
+            flex-direction: row;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            background: var(--text-muted);
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+
+        .dot:nth-child(1) { animation-delay: -0.32s; }
+        .dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+        
+        strong, b {
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">A</div>
+        <div class="header-text">
+            <h1>AI 프롭테크 건축 자동화 에이전트</h1>
+            <p>지번 주소와 조건 입력으로 파라메트릭 매스 및 도면 생성 완료 (MCP 기반)</p>
+        </div>
+    </header>
+
+    <main id="chat-box">
+        <div class="message agent-message">
+            안녕하세요! 건축을 원하시는 <b>지번 주소</b>와 대략적인 <b>용도</b>, 원하시는 <b>구조 및 형태 조건</b>(예: RC 라멘조, 벽돌 마감, 중정 유무 등)을 편하게 말씀해 주세요.
+        </div>
+        <div class="typing-indicator" id="typing">
+            <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+        </div>
+    </main>
+
+    <div class="input-area">
+        <input type="text" id="chat-input" placeholder="메시지를 입력하세요... (예: 서울시 강남구 역삼동 123-45, 주거용, RC라멘조, 벽돌마감)" onkeydown="if(event.key === 'Enter') handleUserInput()">
+        <button class="send-btn" id="send-btn" onclick="handleUserInput()">전송</button>
+    </div>
+
+    <script>
+        const chatBox = document.getElementById('chat-box');
+        const chatInput = document.getElementById('chat-input');
+        const sendBtn = document.getElementById('send-btn');
+        const typingIndicator = document.getElementById('typing');
+        let currentState = 0; // 0: initial, 1: choice selection, 2: finished
+        let isProcessing = false;
+        
+        function scrollBottom() {
+            chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
+        }
+
+        function showTyping() {
+            typingIndicator.style.display = 'flex';
+            chatBox.appendChild(typingIndicator);
+            scrollBottom();
+        }
+
+        function hideTyping() {
+            typingIndicator.style.display = 'none';
+        }
+
+        function addMessage(sender, text) {
+            const div = document.createElement('div');
+            div.className = `message ${sender}-message`;
+            div.innerHTML = text;
+            chatBox.insertBefore(div, typingIndicator);
+            scrollBottom();
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        function lockInput(lock) {
+            isProcessing = lock;
+            chatInput.disabled = lock;
+            sendBtn.disabled = lock;
+            if(!lock) chatInput.focus();
+        }
+
+        async function handleUserInput(forceInput = null) {
+            if (isProcessing) return;
+            
+            let userText = forceInput;
+            if (userText === null) {
+                userText = chatInput.value.trim();
+                chatInput.value = '';
+            }
+            if (!userText) return;
+
+            addMessage('user', userText);
+            lockInput(true);
+            
+            if (currentState === 0) {
+                await processStep123();
+            } else if (currentState === 1) {
+                await processStep4(userText);
+            } else if (currentState === 2) {
+                addMessage('agent', "✨ 모든 프로세스가 완료되었습니다. 페이지를 새로고침하여 새로운 시뮬레이션을 시작하실 수 있습니다.");
+                lockInput(false);
+            }
+        }
+
+        window.selectAlt = (num) => {
+            handleUserInput(`대안 ${num} 선택할게요!`);
+        };
+
+        async function processStep123() {
+            showTyping();
+            await sleep(1500);
+            hideTyping();
+            const msg1 = `<b>[1단계: 위치 정보 및 법규 데이터 수집 완료]</b><br><br>
+📍 <b>가상 대지 데이터 (Vworld & 토지이용규제)</b><br>
+- 대지면적: 약 350㎡<br>
+- 용도지역: 제2종일반주거지역<br>
+- 법정 최대 건폐율: 60%<br>
+- 법정 최대 용적률: 200%<br>
+- 북도방위: 북서쪽 15도<br>
+- 지형 경사도: 평탄 (약 2도 미만)`;
+            addMessage('agent', msg1);
+
+            showTyping();
+            await sleep(2000);
+            hideTyping();
+            const msg2 = `<b>[2단계: 파라미터 정규화 및 엔지니어링 분석 완료]</b><br>
+<pre><code>{
+  "buildingArea_m2": 210,
+  "totalFloorArea_m2": 700,
+  "floors": 4,
+  "floorHeight_m": 3.6,
+  "openingsRatio": 0.35,
+  "structure": "RC Rahmen",
+  "roofType": "Flat"
+}</code></pre><br>
+💡 <b>엔지니어링 코멘트:</b><br>
+요청하신 조건(예: RC 라멘조) 또는 일반적인 철근콘크리트 기둥-보 구조를 적용할 때, 층간 소음 및 구조적 안정성을 위한 적정 슬래브 두께(210mm)와 보의 깊이(약 500~600mm)를 고려하여, 쾌적한 실내 마감 천장고 확보를 위해 <b>층고를 3.6m로 산정</b>하였습니다.`;
+            addMessage('agent', msg2);
+
+            showTyping();
+            await sleep(2500);
+            hideTyping();
+            const msg3 = `<b>[3단계: 디자인 대안 및 시각화 제시]</b><br><br>
+도출된 파라미터를 기반으로 Stable Diffusion ControlNet 외관 렌더링에 사용할 3가지 디자인 대안이 도출되었습니다.<br>
+
+<div class="alt-card">
+    <b>대안 1: 모던 브릭 미니멀리즘</b><br>
+    <div style="color:var(--text-muted); font-size: 0.9em; margin: 8px 0;">[가상 이미지: 적벽돌 마감의 직육면체 형태, 전면에 큰 통창과 흑색 프레임, 옥상 정원을 갖춘 평지붕 주택. 자연 채광을 극대화한 중정 포함]</div>
+    <button onclick="selectAlt(1)">대안 1 선택</button>
+</div>
+
+<div class="alt-card">
+    <b>대안 2: 노출 콘크리트 인더스트리얼</b><br>
+    <div style="color:var(--text-muted); font-size: 0.9em; margin: 8px 0;">[가상 이미지: 매끄러운 노출 콘크리트 외장, 입체적인 캔틸레버 발코니, 측면의 세로형 루버 창호, 간결한 박스형 디자인. 측벽 채광 위주]</div>
+    <button onclick="selectAlt(2)">대안 2 선택</button>
+</div>
+
+<div class="alt-card">
+    <b>대안 3: 우드-글래스 네이처 블렌드</b><br>
+    <div style="color:var(--text-muted); font-size: 0.9em; margin: 8px 0;">[가상 이미지: 1층은 통유리로 개방감을 주고 2층 이상은 수직 목재 루버로 마감한 유기적 형태. 박공지붕을 현대적으로 재해석하여 천창(Skylight)으로 채광 확보]</div>
+    <button onclick="selectAlt(3)">대안 3 선택</button>
+</div>
+<br>👉 <b>위 3가지 대안 중 마음에 드는 대안을 하나 선택해 주세요.</b>`;
+            addMessage('agent', msg3);
+            
+            currentState = 1; // ready to receive choice
+            lockInput(false);
+            chatInput.placeholder = "원하시는 대안 번호를 입력하거나 버튼을 클릭하세요.";
+        }
+
+        async function processStep4(choice) {
+            showTyping();
+            await sleep(3000);
+            hideTyping();
+            const msg4 = `<b>[4단계: 3D 모델 및 도면 데이터 추출 완료]</b><br><br>
+선택하신 대안을 바탕으로 백그라운드에 생성된 3D 파라메트릭 매스에 재질과 디테일을 맵핑하여 파일을 추출하였습니다.<br><br>
+
+📥 <b>다운로드 링크</b><br>
+<a href="#" class="download-link" onclick="alert('가상 다운로드 링크입니다.'); return false;">📄 건축_평면_입면도.dxf</a>
+<a href="#" class="download-link" onclick="alert('가상 다운로드 링크입니다.'); return false;">🧊 3D_매스_모델.skp</a><br><br>
+
+💻 <b>[개발 테스트용] 샘플 파이썬 코드 스니펫 (ezdxf 기반 1층 외곽선 도면 생성)</b>
+<pre><code>import ezdxf
+
+# 새 DXF 문서 생성 (R2010 형식)
+doc = ezdxf.new('R2010')
+msp = doc.modelspace()
+
+# 건축면적(210㎡) 기반 가상의 직사각형 외곽선 생성 (15m x 14m)
+points = [(0, 0), (15000, 0), (15000, 14000), (0, 14000)]
+msp.add_lwpolyline(points, close=True)
+
+# 파일 내보내기
+doc.saveas("floor_plan_1F.dxf")
+print("DXF export complete.")</code></pre>
+<br>🎉 <b>모든 자동화 시뮬레이션이 성공적으로 완료되었습니다.</b>`;
+            addMessage('agent', msg4);
+            
+            currentState = 2; // finished
+            lockInput(false);
+            chatInput.placeholder = "새로고침(F5)을 통해 다시 시작할 수 있습니다.";
+            chatInput.disabled = true;
+            sendBtn.disabled = true;
+        }
+    </script>
+</body>
+</html>
