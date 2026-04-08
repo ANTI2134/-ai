@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>층별 평면도 DXF 생성기</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --surface-color: #1e293b;
+            --surface-hover: #334155;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --secondary: #e2e8f0;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --accent: #10b981;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 320px;
+            background-color: var(--surface-color);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+        }
+
+        .header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-main);
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        .building-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .building-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .building-item:hover {
+            background: var(--surface-hover);
+            transform: translateY(-2px);
+        }
+
+        .building-item.active {
+            border-color: var(--primary);
+            background: rgba(59, 130, 246, 0.1);
+            box-shadow: 0 0 0 1px var(--primary);
+        }
+
+        .b-name {
+            font-weight: 600;
+            font-size: 1rem;
+            margin-bottom: 4px;
+        }
+
+        .b-meta {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .preview-area {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+        }
+
+        canvas {
+            background: transparent;
+            max-width: 90%;
+            max-height: 90%;
+        }
+
+        .empty-state {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            text-align: center;
+            pointer-events: none;
+        }
+
+        .controls-panel {
+            background: var(--surface-color);
+            border-top: 1px solid var(--border);
+            padding: 24px 32px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 24px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 1;
+        }
+
+        .control-group label {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--secondary);
+        }
+
+        .control-group input,
+        .control-group select {
+            background: var(--bg-color);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .control-group input:focus,
+        .control-group select:focus {
+            border-color: var(--primary);
+        }
+
+        .btn-download {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        .btn-download:hover {
+            background: var(--primary-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-download:disabled {
+            background: var(--surface-hover);
+            color: var(--text-muted);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Notice Banner */
+        .notice {
+            position: absolute;
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--accent);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            backdrop-filter: blur(4px);
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+
+        .notice.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="sidebar">
+        <div class="header">
+            <h1>대지 정보 분석</h1>
+            <p>V-World에서 가져온 대지 및 건물 정보를 바탕으로 평면도 DXF를 생성합니다.</p>
+        </div>
+        <div class="building-list" id="buildingList">
+            <!-- Buildings will be rendered here -->
+            <div style="padding: 20px; text-align: center; color: #94a3b8; font-size: 0.9rem;">
+                데이터를 불러오는 중...
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="notice" id="noticeMsg">DXF 파일이 생성되었습니다! 다운로드를 확인하세요.</div>
+
+        <div class="preview-area" id="previewArea">
+            <div class="empty-state" id="emptyState">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                    stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 16px; opacity: 0.5;">
+                    <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                    <polyline points="2 17 12 22 22 17"></polyline>
+                    <polyline points="2 12 12 17 22 12"></polyline>
+                </svg><br>
+                좌측 목록에서 건물을 선택하여<br>평면도를 미리보기 하세요.
+            </div>
+            <canvas id="canvas" width="600" height="600" style="display: none;"></canvas>
+        </div>
+
+        <div class="controls-panel">
+            <div class="control-group">
+                <label>건물명</label>
+                <input type="text" id="targetName" value="선택 안됨" readonly
+                    style="background: rgba(255,255,255,0.05); color: #94a3b8;">
+            </div>
+
+            <div class="control-group" style="flex: 0.5;">
+                <label>도면 유형</label>
+                <input type="text" value="1층 평면도 (Single Floor)" readonly
+                    style="background: rgba(255,255,255,0.05); color: #94a3b8;">
+            </div>
+
+            <button class="btn-download" id="btnDownload" onclick="generateAndDownload()" disabled>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                DXF 파일 저장
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let buildings = [];
+        let selectedIndex = -1;
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Load data on startup
+        window.addEventListener('DOMContentLoaded', () => {
+            const dataStr = localStorage.getItem('planBuildings');
+            if (dataStr) {
+                try {
+                    buildings = JSON.parse(dataStr);
+                    renderList();
+                } catch (e) {
+                    console.error("Failed to parse buildings limit data", e);
+                }
+            } else {
+                document.getElementById('buildingList').innerHTML =
+                    `<div style="padding: 20px; text-align: center; color: #ef4444; font-size: 0.9rem;">
+                        데이터가 없습니다. V-World 지도에서 건물을 선택하고 이 창을 열어주세요.
+                    </div>`;
+            }
+        });
+
+        function renderList() {
+            const listEl = document.getElementById('buildingList');
+            if (buildings.length === 0) {
+                listEl.innerHTML = `<div style="padding:20px; color:#ef4444; text-align:center;">건물이 없습니다.</div>`;
+                return;
+            }
+
+            let html = '';
+            buildings.forEach((b, idx) => {
+                const name = b.name || "무명 건물/대지";
+                const usage = b.usage || "분류없음";
+                const floors = b.floors || 1;
+                html += `
+                    <div class="building-item" onclick="selectBuilding(${idx})" id="bItem_${idx}">
+                        <div class="b-name">${name}</div>
+                        <div class="b-meta">
+                            <span>${usage}</span>
+                            <span>${floors}층</span>
+                        </div>
+                    </div>
+                `;
+            });
+            listEl.innerHTML = html;
+        }
+
+        function selectBuilding(idx) {
+            // Update active state in UI
+            if (selectedIndex >= 0) {
+                document.getElementById(`bItem_${selectedIndex}`)?.classList.remove('active');
+            }
+            selectedIndex = idx;
+            document.getElementById(`bItem_${selectedIndex}`).classList.add('active');
+
+            const b = buildings[idx];
+
+            // Fill controls
+            document.getElementById('targetName').value = b.name || "무명 건물/대지";
+            document.getElementById('btnDownload').disabled = false;
+
+            // Draw preview
+            drawPreview(b.coordinates);
+        }
+
+        function drawPreview(coords) {
+            if (!coords || coords.length === 0) return;
+
+            document.getElementById('emptyState').style.display = 'none';
+            canvas.style.display = 'block';
+
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Find bounds
+            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+            coords.forEach(p => {
+                if (p[0] < minX) minX = p[0];
+                if (p[0] > maxX) maxX = p[0];
+                if (p[1] < minY) minY = p[1];
+                if (p[1] > maxY) maxY = p[1];
+            });
+
+            const width = maxX - minX;
+            const height = maxY - minY;
+            const padding = 50;
+
+            const scale = Math.min(
+                (canvas.width - padding * 2) / (width || 1),
+                (canvas.height - padding * 2) / (height || 1)
+            );
+
+            const cx = minX + width / 2;
+            const cy = minY + height / 2;
+
+            ctx.save();
+            // Transform to center and scale
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            ctx.scale(scale, -scale); // Invert Y for cartesian
+
+            // Draw polygon
+            ctx.beginPath();
+            ctx.moveTo(coords[0][0] - cx, coords[0][1] - cy);
+            for (let i = 1; i < coords.length; i++) {
+                ctx.lineTo(coords[i][0] - cx, coords[i][1] - cy);
+            }
+            ctx.closePath();
+
+            ctx.fillStyle = 'rgba(59, 130, 246, 0.2)';
+            ctx.fill();
+
+            ctx.lineWidth = 2 / scale;
+            ctx.strokeStyle = '#3b82f6';
+            ctx.stroke();
+
+            // Draw vertices
+            ctx.fillStyle = '#10b981';
+            coords.forEach(p => {
+                ctx.beginPath();
+                ctx.arc(p[0] - cx, p[1] - cy, 3 / scale, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            ctx.restore();
+        }
+
+        function offsetPolygon(coords, distance) {
+            if (!coords || coords.length < 3) return [];
+            let area = 0;
+            for (let i = 0; i < coords.length; i++) {
+                let p1 = coords[i];
+                let p2 = coords[(i + 1) % coords.length];
+                area += p1[0] * p2[1] - p2[0] * p1[1];
+            }
+            let isCCW = area > 0;
+
+            function getInwardNormal(p1, p2) {
+                let dx = p2[0] - p1[0];
+                let dy = p2[1] - p1[1];
+                let len = Math.sqrt(dx * dx + dy * dy);
+                if (len < 1e-9) return [0, 0];
+                dx /= len; dy /= len;
+                return isCCW ? [-dy, dx] : [dy, -dx];
+            }
+
+            let offsetLines = [];
+            for (let i = 0; i < coords.length; i++) {
+                let p1 = coords[i];
+                let p2 = coords[(i + 1) % coords.length];
+                let norm = getInwardNormal(p1, p2);
+
+                let op1 = [p1[0] + norm[0] * distance, p1[1] + norm[1] * distance];
+                let op2 = [p2[0] + norm[0] * distance, p2[1] + norm[1] * distance];
+
+                offsetLines.push({ p1: op1, p2: op2, dx: p2[0] - p1[0], dy: p2[1] - p1[1], norm: norm });
+            }
+
+            let newCoords = [];
+            for (let i = 0; i < offsetLines.length; i++) {
+                let l1 = offsetLines[(i > 0 ? i - 1 : offsetLines.length - 1)];
+                let l2 = offsetLines[i];
+
+                let cross = l1.dx * l2.dy - l1.dy * l2.dx;
+
+                if (Math.abs(cross) < 1e-8) {
+                    newCoords.push([...l1.p2]);
+                } else {
+                    let t = ((l2.p1[0] - l1.p1[0]) * l2.dy - (l2.p1[1] - l1.p1[1]) * l2.dx) / cross;
+                    // Limit t to prevent extreme spikes on very sharp angles
+                    if (Math.abs(t) > 100) t = l1.dx > 0 ? 100 : -100;
+                    newCoords.push([
+                        l1.p1[0] + t * l1.dx,
+                        l1.p1[1] + t * l1.dy
+                    ]);
+                }
+            }
+            return newCoords;
+        }
+
+        function buildDXFString(coords, floors, layout) {
+            // Clean GeoJSON coords: remove last point if it exactly matches the first point
+            if (coords.length > 1) {
+                let first = coords[0];
+                let last = coords[coords.length - 1];
+                if (Math.abs(first[0] - last[0]) < 1e-6 && Math.abs(first[1] - last[1]) < 1e-6) {
+                    coords = coords.slice(0, coords.length - 1);
+                }
+            }
+            // Remove any other consecutive duplicate points to cleanly calculate normals
+            coords = coords.filter((p, i, arr) => {
+                if (i === 0) return true;
+                let prev = arr[i - 1];
+                return Math.abs(p[0] - prev[0]) > 1e-6 || Math.abs(p[1] - prev[1]) > 1e-6;
+            });
+
+            // Universal basic DXF header - no versions or complex tables needed for simple lines
+            let dxf = "  0\nSECTION\n  2\nHEADER\n  9\n$ACADVER\n  1\nAC1009\n  0\nENDSEC\n";
+            dxf += "  0\nSECTION\n  2\nENTITIES\n";
+
+            const floorHeightMM = 3000;
+            const wallThicknessM = 0.2;
+
+            let innerCoords = offsetPolygon(coords, wallThicknessM);
+
+            let minX = Infinity, maxX = -Infinity, minY = Infinity;
+            coords.forEach(p => {
+                if (p[0] < minX) minX = p[0];
+                if (p[0] > maxX) maxX = p[0];
+                if (p[1] < minY) minY = p[1];
+            });
+
+            const widthMM = (maxX - minX) * 1000;
+            const spacingMM = widthMM + 5000;
+
+            for (let f = 0; f < floors; f++) {
+                let offsetX = 0;
+                let offsetZ = 0;
+                let layerName = `Floor_${f + 1}`;
+
+                if (layout === '2d') {
+                    offsetX = f * spacingMM;
+                } else if (layout === '3d') {
+                    offsetZ = f * floorHeightMM;
+                }
+
+                // Pure LINE entities - 100% bomb-proof for SketchUp import
+                function makeLinesDXF(pts) {
+                    if (!pts || pts.length < 2) return "";
+                    let res = "";
+                    for (let i = 0; i < pts.length; i++) {
+                        let p1 = pts[i];
+                        let p2 = pts[(i + 1) % pts.length]; // Closed loop
+
+                        let x1 = (p1[0] * 1000) + offsetX;
+                        let y1 = (p1[1] * 1000);
+                        let x2 = (p2[0] * 1000) + offsetX;
+                        let y2 = (p2[1] * 1000);
+
+                        if (isNaN(x1) || isNaN(y1) || isNaN(x2) || isNaN(y2)) continue;
+
+                        res += "  0\nLINE\n";
+                        res += `  8\n${layerName}\n`;
+                        res += ` 10\n${x1.toFixed(4)}\n`;
+                        res += ` 20\n${y1.toFixed(4)}\n`;
+                        res += ` 30\n${offsetZ.toFixed(4)}\n`;
+                        res += ` 11\n${x2.toFixed(4)}\n`;
+                        res += ` 21\n${y2.toFixed(4)}\n`;
+                        res += ` 31\n${offsetZ.toFixed(4)}\n`;
+                    }
+                    return res;
+                }
+
+                // Append outer bounding walls and inner walls
+                dxf += makeLinesDXF(coords);
+                dxf += makeLinesDXF(innerCoords);
+
+                if (layout === '2d') {
+                    dxf += "  0\nTEXT\n";
+                    dxf += `  8\n${layerName}_Label\n`;
+                    dxf += ` 10\n${((minX * 1000) + offsetX).toFixed(4)}\n`;
+                    dxf += ` 20\n${((minY * 1000) - 4000).toFixed(4)}\n`;
+                    dxf += ` 30\n0.0\n`;
+                    dxf += ` 40\n1500.0\n`; // Text height 1.5m
+                    dxf += `  1\n${f + 1}F PLAN\n`;
+                }
+            }
+
+            dxf += "  0\nENDSEC\n  0\nEOF\n";
+            return dxf;
+        }
+
+        function generateAndDownload() {
+            if (selectedIndex < 0) return;
+
+            const b = buildings[selectedIndex];
+            const floors = 1;
+            const layout = '2d';
+
+            // Build string
+            const dxfContent = buildDXFString(b.coordinates, floors, layout);
+
+            // Export
+            const blob = new Blob([dxfContent], { type: 'application/dxf' });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `FloorPlan_${b.name || 'Building'}_1F.dxf`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            // Show notice
+            const notice = document.getElementById('noticeMsg');
+            notice.classList.add('show');
+            setTimeout(() => {
+                notice.classList.remove('show');
+            }, 3000);
+        }
+    </script>
+</body>
+
+</html>
